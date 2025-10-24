@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>스네이크 | 노트북 전용 · 벽 충돌 오버</title>
+  <style>
+    html,body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0a0a0a;color:#d0d0d0}
+    .wrap{max-width:460px;margin:0 auto;padding:12px}
+    h1{font-size:18px;margin:8px 0}
+    canvas{display:block;background:#101214;image-rendering:pixelated;border-radius:8px}
+    .row{display:flex;gap:12px;align-items:center;margin-top:6px}
+    small{color:#8a8a8a}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>스네이크</h1>
+    <canvas id="c" width="420" height="420" aria-label="스네이크 게임"></canvas>
+    <div class="row">
+      <div>점수: <span id="score">0</span></div>
+      <small>조작: ↑ ↓ ← → / R 재시작</small>
+    </div>
+  </div>
+
+  <script>
+    // 노트북 전용. 화살표 키 입력. 스크롤 방지.
+    const cvs = document.getElementById('c');
+    const ctx = cvs.getContext('2d');
+    const N = 21;                 // 21x21 그리드
+    const S = Math.floor(cvs.width / N);      // 셀 크기
+    const scoreEl = document.getElementById('score');
+
+    let snake, dir, nextDir, food, score, last, stepMs;
+
+    function spawnFood(){
+      while(true){
+        const f = { x: (Math.random()*N)|0, y: (Math.random()*N)|0 };
+        if(!snake.some(s=>s.x===f.x && s.y===f.y)) return f;
+      }
+    }
+
+    function reset(){
+      const mid = Math.floor(N/2);
+      snake = [{x:mid,y:mid},{x:mid-1,y:mid},{x:mid-2,y:mid}];
+      dir = {x:1,y:0};
+      nextDir = {x:1,y:0};
+      food = spawnFood();
+      score = 0; scoreEl.textContent = score;
+      stepMs = 120; last = 0;
+      draw(); // 초기화면
+    }
+
+    addEventListener('keydown', e => {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+      if(e.key==='ArrowUp'   && dir.y!== 1) nextDir={x:0,y:-1};
+      if(e.key==='ArrowDown' && dir.y!==-1) nextDir={x:0,y: 1};
+      if(e.key==='ArrowLeft' && dir.x!== 1) nextDir={x:-1,y:0};
+      if(e.key==='ArrowRight'&& dir.x!==-1) nextDir={x: 1,y:0};
+      if(e.key==='r' || e.key==='R') reset();
+    }, {passive:false});
+
+    function step(){
+      dir = nextDir;
+      const headX = snake[0].x + dir.x;
+      const headY = snake[0].y + dir.y;
+
+      // 벽 충돌 시 게임 오버(리셋)
+      if(headX < 0 || headX >= N || headY < 0 || headY >= N){ reset(); return; }
+
+      const head = {x:headX, y:headY};
+      if(snake.some(s=>s.x===head.x && s.y===head.y)){ reset(); return; }
+
+      snake.unshift(head);
+      if(head.x===food.x && head.y===food.y){
+        score++; scoreEl.textContent = score;
+        food = spawnFood();
+      } else snake.pop();
+    }
+
+    function draw(){
+      // 배경
+      ctx.fillStyle = '#101214';
+      ctx.fillRect(0,0,cvs.width,cvs.height);
+
+      // 미세 격자(낮은 대비)
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#1a1f24';
+      for(let y=0;y<N;y++) for(let x=0;x<N;x++) if((x+y)%2===0){
+        ctx.fillRect(x*S, y*S, S, S);
+      }
+      ctx.globalAlpha = 1;
+
+      // 먹이: 부드러운 오렌지
+      ctx.fillStyle = '#f6c177';
+      ctx.fillRect(food.x*S, food.y*S, S, S);
+
+      // 뱀: 소프트 그린
+      ctx.fillStyle = '#7bd88f';
+      for(const p of snake) ctx.fillRect(p.x*S+1, p.y*S+1, S-2, S-2);
+    }
+
+    function loop(t){
+      if(!last) last = t;
+      if(t - last >= stepMs){ step(); draw(); last = t; }
+      requestAnimationFrame(loop);
+    }
+
+    reset();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
